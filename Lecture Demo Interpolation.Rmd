@@ -1,0 +1,451 @@
+---
+title: "Lecture Example Interpolation - GGR376"
+subtitle: Interpolation
+output:
+  pdf_document: default
+  
+---
+```{r}
+library(tidyverse)
+library(leaflet)
+library(rgdal)
+```
+
+# Interpolation
+
+First, load some air pollution data from Paris France
+
+```{r}
+
+pollution <- readOGR("https://raw.githubusercontent.com/gisUTM/GGR376/master/Lab_2/paris_pollution.geojson")
+```
+
+Visualize the data on a leaflet map
+
+```{r}
+leaflet(data = pollution)%>% 
+  addTiles()%>%
+  addCircleMarkers()
+              
+```
+
+There is an error. The Leaflet package expects all vector data to be specified in latitude and longitude using WGS 84 (a.k.a. EPSG:4326). By default, when displaying this data it projects everything to EPSG:3857 and expects that any map tiles are also displayed in EPSG:3857.
+
+Check the pollution data's projection, which is stored in the sp object under proj4string
+
+```{r}
+pollution@proj4string
+```
+
+It is in a UTM projection.
+
+Create a version of the data with the WGS 84 projection.
+
+```{r}
+pollution_LatLong <- spTransform(pollution, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+
+leaflet(pollution_LatLong)%>% 
+  addTiles()%>%
+  addCircleMarkers()
+```
+
+Keeping this in-mind, we should conduct our analysis in a projected coordinate system. Then we can project our final results for a final map.
+
+## Theissen Polygons
+
+Theissen polygons can be easily created with the voronoi function in the dismo library.
+
+```{r}
+library("dismo")
+
+vor <- voronoi(pollution)
+spplot(vor, "PM")
+
+```
+
+It is possible to add our points onto of our map. It is tricky, you need to create a list object with list(). Then provide the sp data, and any style you want to include.
+
+```{r}
+spplot(vor,"PM",
+       sp.layout = list(
+         pollution,
+         col = "white",
+         pch = 19)
+       )
+```
+
+## Locations to predict
+
+Read in this file of points that do not have pollution values. Use IDW to predict their values.
+
+```{r}
+predictions <- readOGR("https://raw.githubusercontent.com/gisUTM/GGR376/master/Lab_2/prediction_locations.geojson")
+```
+
+```{r}
+plot(pollution)
+plot(predictions, add = TRUE, col = "RED")
+```
+
+
+IDW Interpolation
+
+The gstat library contains a set of functions for Spatial and Spatio-Temporal Geostatistical Modelling, Prediction and Simulation. 
+
+```{r}
+library(gstat)
+
+pred <- idw(PM ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
+            pollution, # Input Data
+            predictions, # Prediction Locations
+            idp = 2 # Exponent (k)
+            )
+```
+
+The output is an object of class sp, with the prediction results stored in the variable: var1.pred
+
+```{r}
+class(pred)
+str(pred)
+spplot(pred, "var1.pred")
+```
+
+## Cross Validation
+
+The gstat package has a built in cross validation function for both IDW and Kriging, krige.cv()  
+
+The krige.cv function can conduct both LOOCV and k-fold validation
+
+- LOOCV, set nfold = number of observations
+
+
+```{r}
+LOOCV <- krige.cv(PM~1, 
+                  pollution, 
+                  nfold = nrow(pollution), # Set the number of folds to the number of rows
+                  set = list(idp = 2)
+                  )
+```
+
+View the stucture of the object.
+
+```{r}
+str(LOOCV)
+```
+
+View the LOOCV data
+
+```{r}
+LOOCV@data
+```
+
+
+Plot the residuals.
+
+```{r}
+spplot(LOOCV, "residual")
+```
+
+Recall from lecture our Measures of Fit.
+
+$$\operatorname{RMSE}=\sqrt{\frac{\sum_{i=1}^n (Y_i-\hat{Y_i})^2}{n}}$$
+
+The $Y_i-\hat{Y_i}$ component is simply the values in the residual column . To calculate RMSE we will need to square our residuals, find the mean, and take the square.
+
+```{r}
+LOOCV@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+  
+```
+
+This will need to be conducted a number of times. Here is a simple function to complete the same task.
+
+```{r}
+RMSE_resid <- function(x){
+  return(sqrt(mean(x^2)))
+} 
+```
+
+Try the function.
+
+```{r}
+RMSE_resid(LOOCV@data$residual)
+```
+
+At this point you could try different exponent values and compare the cross-validation to determine the optimal k.
+
+```{r}
+# Exponent of 1 (k)
+LOOCV_k1 <- krige.cv(PM~1, 
+                  pollution, 
+                  nfold = nrow(pollution), # Set the number of folds to the number of rows
+                  set = list(idp = 1)
+                  )
+
+# Exponent of 2 (k)
+LOOCV_k2 <- krige.cv(PM~1, 
+                  pollution, 
+                  nfold = nrow(pollution), # Set the number of folds to the number of rows
+                  set = list(idp = 2)
+                  )
+
+# Exponent of 3 (k)
+LOOCV_k3 <- krige.cv(PM~1, 
+                  pollution, 
+                  nfold = nrow(pollution), # Set the number of folds to the number of rows
+                  set = list(idp = 3)
+                  )
+
+
+
+```
+
+Determine the best value of k, using RMSE of the residuals.
+```{r}
+# Determine RMSE when k = 1
+RMSE_resid(LOOCV_k1@data$residual)
+
+# Determine RMSE when k = 2
+RMSE_resid(LOOCV_k2@data$residual)
+
+# Determine RMSE when k = 3
+RMSE_resid(LOOCV_k3@data$residual)
+```
+
+
+
+## Kriging
+
+Kriging relies on a model to determine how the influence of points further away will occur in the estimation. Unlike IDW which has a constant rate of decay for distance.
+
+Load some familiar libraries.
+
+```{r}
+library(sp)
+library(gstat)
+library(tidyverse)
+```
+
+The data set that will be used in this tutorial is meuse from the sp package.
+
+"This data set gives locations and topsoil heavy metal concentrations, along with a number of soil and landscape variables at the observation locations, collected in a flood plain of the river Meuse, near the village of Stein (NL). Heavy metal concentrations are from composite samples of an area of approximately 15 m x 15 m."
+
+```{r}
+data(meuse)
+glimpse(meuse) # Provide a nice view of our data
+```
+
+```{r}
+class(meuse)
+```
+
+Take a look at the lead concentration in the soil. Create a plot using ggplot.
+
+```{r}
+ggplot(data = meuse)+
+  geom_point(mapping = aes(x = x, y = y, size = lead), color = "brown", alpha = 3/4) +
+  ggtitle("Topsoil Lead Concentrations (PPM)") + 
+  coord_fixed()
+```
+
+The coord_fixed() function is added in ggplot to fix the scale along both the x and y axis. Remove this function and view the plot again. 
+
+## Spatial Object
+
+A spatial data object is required for gstat. Convert the data.frame into a SpatialPointsDataFrame().
+
+This requires specifying the x and y coordinates using the sp::coordinates() function. A spatial object will be created from the data.frame
+
+```{r}
+coordinates(meuse) <- ~ x + y
+class(meuse)
+```
+
+## Bounding Box
+
+The spatial bounding box, which is a box that would surround all objects in your data, can be retrieved with sp::bbox()
+
+```{r}
+bbox(meuse)
+```
+
+## Fitting a Variogram
+
+Kriging requires a variogram model, which is applied to determine the weighting of distance.
+
+Kriging requires that our attribute be normally distributed.
+
+```{r}
+hist(meuse@data$lead)
+```
+
+As with most pollution data, the lead data is log-normal. When kriging it will be best to use the log of a value. Create a variable (logLead), which is the log values of lead.
+
+```{r}
+# Add logLead variable
+meuse@data$logLead <- log(meuse@data$lead)
+
+# Histogram of new variable
+hist(meuse@data$logLead)
+```
+
+## Calculate Sample (empirical) Variogram
+
+```{r}
+lead.vgm <- variogram(logLead~1, meuse)
+plot(lead.vgm)
+```
+
+## Variogram Models
+There are a number of models available that can be used to model the data.
+
+```{r}
+show.vgms()
+```
+
+Select a model that has a similar shape to the data. In this case we will use "Sph", which is the Spherical Model.
+
+```{r}
+lead.fit <- fit.variogram(lead.vgm, model = vgm("Sph"))
+```
+
+The gstat::fit.variogram function fits ranges and/or sills from a simple or nested variogram model to a sample variogram. 
+
+Recall
+
+- Sill, value at which the model flattens out
+- Range, distance at which model first flattens out
+- Nugget, value at which the semi-variogram (almost) intercepts the y-value.
+    + Expectation is that values at the same location should be equal
+        + Due to sampling error or randomness they may not, which creates the nugget
+
+## Plot the fit
+
+```{r}
+plot(lead.vgm, lead.fit)
+```
+
+The sill, nugget and range can be viewed by calling the fit model.
+
+```{r}
+lead.fit
+```
+
+- Sill: 0.515
+- Range: 996.15
+- Nugget: 0.051
+
+## Create a convex hull
+
+The boundary of the measured points represents the area that can be interpolated. Create a convex hull (polygon) around the points.
+
+Find the row ids of the points that make up a convex hull
+```{r}
+convex_hull_point_ids <- meuse@coords %>% 
+  chull() 
+
+```
+
+Subset the points that make up the convex hull, and change to a data frame
+```{r}
+convex_hull_points <- meuse@coords[ convex_hull_point_ids, ]%>%
+  as.data.frame()
+
+plot(convex_hull_points)
+```
+
+## Create a Polygon from the points
+
+```{r}
+# Get a matrix of the coordinates
+crds <- coordinates(convex_hull_points)
+
+# Create a polygon
+poly <- sp::Polygon(crds)
+
+# Prepare data for a SpatialPolygons Object
+ID <- "Minimum Boundary"
+Pls <- Polygons(list(poly), ID=ID)
+
+SPls <- SpatialPolygons(list(Pls))
+plot(SPls)
+class(SPls)
+```
+
+## Create a evenly spaced grid
+
+```{r}
+grid <- makegrid(SPls, cellsize = 100)
+
+class(grid)
+
+str(grid)
+
+coordinates(grid) <- ~ x1+x2
+
+class(grid)
+
+plot(grid)
+```
+
+## Select only grid points within Convex Hull
+
+```{r}
+# Check which grid cells are in the polygon
+grid_in_poly <- sp::over(grid , SPls)
+
+grid_in_poly # NA were not in poly
+
+# Select points not NA using !is.na()
+grid_predict <- grid[!is.na(grid_in_poly),]
+
+plot(grid_predict)
+```
+
+## Predict Values at New Points
+
+```{r}
+lead_ordinary_krige <- krige(logLead~1, meuse, grid_predict, model=lead.fit)
+```
+
+## Plot the Predictions
+```{r}
+spplot(lead_ordinary_krige, "var1.pred")
+```
+
+## Plot the Kriging Variance
+
+Estimate of estimation error. The error map is very much a map of distance to near points.
+
+```{r}
+spplot(lead_ordinary_krige, "var1.var")
+```
+
+```{r}
+str(lead_ordinary_krige)
+```
+
+## Cross-Validation 
+
+Use LOOCV
+
+```{r}
+LOOCV_krige_lead <-krige.cv(logLead~1, meuse, model=lead.fit )
+
+LOOCV_krige_lead@data$residual
+```
+
+```{r}
+# Note, this is in log units for lead
+RMSE_resid(LOOCV_krige_lead@data$residual)
+```
+
+
+
+
+
+
+
+
+
