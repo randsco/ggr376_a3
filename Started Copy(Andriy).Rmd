@@ -28,15 +28,12 @@ leaflet(data = pollution)%>%
 
 
 ```{r}
-  pollution_filtered_states<-pollution%>%filter("State Name"=="Arkansas" | "State Name"=="Tennesse" | "State Name"=="Louisiana" | "State Name"==" Olklahoma" |"State Name"== "Texas" )
- pollution_filtered_states<-pollution%>%filter("State Name"=="Arkansas" | "State Name"=="Tennesse" | "State Name"=="Louisiana" | "State Name"==" Olklahoma" |"State Name"== "Texas" )
+  pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennesse" | `State Name`=="Louisiana" | `State Name`==" Olklahoma" |`State Name`== "Texas" )
 ```
 
 ```{r}
-pollution_filtered_states_by_parametres<-pollution%>%filter("Parameter Name"=="Nitrogin dioxide (NO2)" | "Parameter Name"=="PM 2.5 Carbon at 470 nm" | "Parameter Name"=="PM 2.5 Carbon at 520 nm" | "Parameter Name"=="PM 2.5 Carbon at 590 nm" |"Parameter Name"== "PM 2.5 Carbon at 660 nm" | "Parameter Name"=="Ozone" )
+pollution_filtered_states_by_parametres<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)"| `Parameter Name`=="Ozone" | `Parameter Name`=="PM2.5 Total Atmospheric"& `Sample Duration`=="24-HR BLK AVG")
 
 ```
-
-
 
 
