@@ -11,6 +11,7 @@ library(leaflet)
 library(rgdal)
 library(sp)
 library(gapminder)
+library(gstat)
 ```
 
 
@@ -28,12 +29,30 @@ leaflet(data = pollution)%>%
 
 
 ```{r}
-  pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennesse" | `State Name`=="Louisiana" | `State Name`==" Olklahoma" |`State Name`== "Texas" )
+  pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennessee" | `State Name`=="Louisiana" | `State Name`==" Oklahoma" |`State Name`== "Texas" )
 ```
 
 ```{r}
 pollution_filtered_states_by_parametres<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)"| `Parameter Name`=="Ozone" | `Parameter Name`=="PM2.5 Total Atmospheric"& `Sample Duration`=="24-HR BLK AVG")
 
+```
+
+
+```{r}
+no2<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)")
+
+```
+```{r}
+ozone<-pollution_filtered_states%>%filter(`Parameter Name`=="Ozone")
+
+```
+```{r}
+pm25<-pollution_filtered_states%>%filter(`Parameter Name`=="PM2.5 Total Atmospheric"& `Sample Duration`=="24-HR BLK AVG")
+```
+
+```{r}
+data(no2)
+glimpse(no2) 
 ```
 
 
