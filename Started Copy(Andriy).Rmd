@@ -29,7 +29,11 @@ leaflet(data = pollution)%>%
 
 
 ```{r}
+<<<<<<< HEAD
   pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennessee" | `State Name`=="Louisiana" | `State Name`==" Oklahoma" |`State Name`== "Texas" )
+=======
+pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennessee" | `State Name`=="Louisiana" | `State Name`=="Oklahoma" | `State Name`== "Texas" )
+>>>>>>> c86312f0e565ee60803e510985b442d19253ee92
 ```
 
 ```{r}
