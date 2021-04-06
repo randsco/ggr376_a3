@@ -72,8 +72,6 @@ ggplot(data = pm25_copy)+
   coord_fixed()
 ```
 
-
-
 # Grid Making
 ```{r}
 
@@ -86,31 +84,20 @@ ggplot(data = pm25_copy)+
 data(no2)
 glimpse(no2)
 class(no2)
-```
-
-```{r}
 coordinates(no2) <- ~ Longitude + Latitude
 class(no2)
-```
-
-```{r}
 bbox(no2)
 ```
 
 ```{r}
-hist(no2@data$'Arithmetic Mean')
-```
 
-```{r}
+hist(no2@data$'Arithmetic Mean')
 # Log transform NO2 data to meet normally distributed assumption for kriging
 no2@data$'AMLog' <- log(no2@data$'Arithmetic Mean')
 # Histogram of new variable
 hist(no2@data$'AMLog')
-```
-
-```{r}
-show.vgms()
 no2_var.vgm <- variogram(AMLog~1, no2)
+show.vgms()
 plot(no2_var.vgm)
 ```
 
@@ -120,29 +107,17 @@ plot(no2_var.vgm)
 data(o3)
 glimpse(o3)
 class(o3)
-```
-
-```{r}
 coordinates(o3) <- ~ Longitude + Latitude
 class(o3)
-```
-
-```{r}
 bbox(o3)
 ```
 
 ```{r}
 hist(o3@data$'Arithmetic Mean')
-```
-
-```{r}
 # Log transform O3 data to meet normally distributed assumption for kriging
 o3@data$'AMLog' <- log(o3@data$'Arithmetic Mean')
 # Histogram of new variable
 hist(o3@data$'AMLog')
-```
-
-```{r}
 show.vgms()
 o3_var.vgm <- variogram(AMLog~1, o3)
 plot(o3_var.vgm)
@@ -151,37 +126,29 @@ plot(o3_var.vgm)
 # PM 2.5
 
 ```{r}
+# PM 2.5 data preview
 data(pm25)
 glimpse(pm25)
 class(pm25)
-```
-
-```{r}
+# PM 2.5 convert to SPDF
 coordinates(pm25) <- ~ Longitude + Latitude
 class(pm25)
 ```
 
 ```{r}
+# PM 2.5 pre transform
 bbox(pm25)
-```
-
-```{r}
 hist(pm25@data$'Arithmetic Mean')
-```
-
-```{r}
 # Log transform PM 2.5 data to meet normally distributed assumption for kriging
 pm25@data$'AMLog' <- log(pm25@data$'Arithmetic Mean')
 # Histogram of new variable
 hist(pm25@data$'AMLog')
-```
-
-```{r}
+# Show variogram models
 show.vgms()
+# PM 2.5 variogram
 pm25_var.vgm <- variogram(AMLog~1, pm25)
 plot(pm25_var.vgm)
 ```
-
 
 # Data Mapping
 
