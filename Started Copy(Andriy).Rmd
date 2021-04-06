@@ -186,7 +186,14 @@ plot(pm25_var.vgm)
 # Data Mapping
 
 ```{r}
-
+# Load in state boundaries polygon
+state_boundaries <- readOGR("state_boundaries.geojson")
+# Reproject data to WGS84 EPSG:4326
+state_boundaries <- spTransform(state_boundaries, CRS("+init=epsg:4326"))
+# Map boundaries
+leaflet(state_boundaries)%>%
+  addTiles()%>%
+  addPolygons()
 ```
 
 
