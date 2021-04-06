@@ -76,4 +76,44 @@ hist(no_2@data$'AMLog')
 no_2_var.vgm <- variogram(AMLog~1, no_2)
 plot(no_2_var.vgm)
 ```
+```{r}
+data(ozone)
+glimpse(ozone) 
+class(ozone)
+```
+```{r}
+coordinates(ozone) <- ~ Longitude + Latitude
+class(ozone)
+```
+```{r}
+bbox(ozone)
+```
+
+```{r}
+hist(ozone@data$'Arithmetic Mean')
+```
+```{r}
+ozone@data$'AMLog' <- log(ozone@data$'Arithmetic Mean')
+
+# Histogram of new variable
+hist(ozone@data$'AMLog')
+```
+```{r}
+data(pm25)
+glimpse(pm25) 
+class(pm25)
+```
+```{r}
+coordinates(pm25) <- ~ Longitude + Latitude
+class(pm25)
+```
+```{r}
+bbox(pm25)
+```
+```{r}
+pm25@data$'AMLog' <- log(pm25@data$'Arithmetic Mean')
+
+# Histogram of new variable
+hist(pm25@data$'AMLog')
+```
 
