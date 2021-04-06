@@ -33,13 +33,13 @@ pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State N
 ```
 
 ```{r}
-pollution_filtered_states_by_parametres<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)"| `Parameter Name`=="Ozone" | `Parameter Name`=="PM2.5 Total Atmospheric"& `Sample Duration`=="24-HR BLK AVG")
+pollution_filtered_states_by_parametres<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)"| `Parameter Name`=="Ozone" | `Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG")
 
 ```
 
 
 ```{r}
-no2<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)")
+no_2<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)")
 
 ```
 ```{r}
@@ -47,12 +47,36 @@ ozone<-pollution_filtered_states%>%filter(`Parameter Name`=="Ozone")
 
 ```
 ```{r}
-pm25<-pollution_filtered_states%>%filter(`Parameter Name`=="PM2.5 Total Atmospheric"& `Sample Duration`=="24-HR BLK AVG")
+pm25<-pollution_filtered_states%>%filter(`Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG")
 ```
 
 ```{r}
-data(no2)
-glimpse(no2) 
+data(no_2)
+glimpse(no_2) 
+class(no_2)
 ```
 
+```{r}
+coordinates(no_2) <- ~ Longitude + Latitude
+class(no_2)
+```
+
+```{r}
+bbox(no_2)
+```
+```{r}
+hist(no_2@data$'Arithmetic Mean')
+
+```
+
+```{r}
+no_2@data$'AMLog' <- log(no_2@data$'Arithmetic Mean')
+
+# Histogram of new variable
+hist(no_2@data$'AMLog')
+```
+```{r}
+no_2_var.vgm <- variogram(AMLog~1, no_2)
+plot(no_2_var.vgm)
+```
 
