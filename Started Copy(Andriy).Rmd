@@ -6,114 +6,187 @@ output:
   
 ---
 ```{r}
+# Import libraries
 library(tidyverse)
 library(leaflet)
 library(rgdal)
 library(sp)
 library(gapminder)
 library(gstat)
+
+# Import stolen libraries
+library(spdep)
+library(latticeExtra)
+library(RColorBrewer)
+library(dplyr)
 ```
 
-
-
-
 ```{r}
+# Read in pollution data from csv
 pollution<-read_csv("annual_conc_by_monitor_2018.csv")
 ```
-```{r}
-leaflet(data = pollution)%>% 
-  addTiles()%>%
-  addCircleMarkers()
-```
+
+# Data Filtering
 
 ```{r}
+# Filter pollution data by state
 pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennessee" | `State Name`=="Louisiana" | `State Name`=="Oklahoma" | `State Name`== "Texas" )
-```
 
-```{r}
+# Filter pollution data by sensor
 pollution_filtered_states_by_parametres<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)"| `Parameter Name`=="Ozone" | `Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG")
+
+# Split up pollution data by sensor
+no2 <- pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)")
+o3 <- pollution_filtered_states%>%filter(`Parameter Name`=="Ozone")
+pm25 <- pollution_filtered_states%>%filter(`Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG")
+no2_copy <- no2
+o3_copy <- o3
+pm25_copy <- pm25
+```
+
+# Data Plotting
+
+```{r}
+# All sensor data
+ggplot(data = pollution_filtered_states_by_parametres)+
+  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
+  ggtitle("All sensor Arithmetic Means") + 
+  coord_fixed()
+
+# NO2 sensors
+ggplot(data = no2_copy)+
+  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
+  ggtitle("NO2 sensor Arithmetic Means") + 
+  coord_fixed()
+
+# O3 sensors
+ggplot(data = o3_copy)+
+  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
+  ggtitle("O3 sensor Arithmetic Means") + 
+  coord_fixed()
+
+# PM 2.5 sensors
+ggplot(data = pm25_copy)+
+  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
+  ggtitle("PM 2.5 sensor Arithmetic Means") + 
+  coord_fixed()
 ```
 
 
-```{r}
-no_2<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)")
 
-```
+# Grid Making
 ```{r}
-ozone<-pollution_filtered_states%>%filter(`Parameter Name`=="Ozone")
-
-```
-```{r}
-pm25<-pollution_filtered_states%>%filter(`Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG")
-```
-
-```{r}
-data(no_2)
-glimpse(no_2) 
-class(no_2)
-```
-
-```{r}
-coordinates(no_2) <- ~ Longitude + Latitude
-class(no_2)
-```
-
-```{r}
-bbox(no_2)
-```
-```{r}
-hist(no_2@data$'Arithmetic Mean')
 
 ```
 
-```{r}
-no_2@data$'AMLog' <- log(no_2@data$'Arithmetic Mean')
+# Kriging
+# NO2
 
+```{r}
+data(no2)
+glimpse(no2)
+class(no2)
+```
+
+```{r}
+coordinates(no2) <- ~ Longitude + Latitude
+class(no2)
+```
+
+```{r}
+bbox(no2)
+```
+
+```{r}
+hist(no2@data$'Arithmetic Mean')
+```
+
+```{r}
+# Log transform NO2 data to meet normally distributed assumption for kriging
+no2@data$'AMLog' <- log(no2@data$'Arithmetic Mean')
 # Histogram of new variable
-hist(no_2@data$'AMLog')
-```
-```{r}
-no_2_var.vgm <- variogram(AMLog~1, no_2)
-plot(no_2_var.vgm)
-```
-```{r}
-data(ozone)
-glimpse(ozone) 
-class(ozone)
-```
-```{r}
-coordinates(ozone) <- ~ Longitude + Latitude
-class(ozone)
-```
-```{r}
-bbox(ozone)
+hist(no2@data$'AMLog')
 ```
 
 ```{r}
-hist(ozone@data$'Arithmetic Mean')
+show.vgms()
+no2_var.vgm <- variogram(AMLog~1, no2)
+plot(no2_var.vgm)
 ```
-```{r}
-ozone@data$'AMLog' <- log(ozone@data$'Arithmetic Mean')
 
+# 03
+
+```{r}
+data(o3)
+glimpse(o3)
+class(o3)
+```
+
+```{r}
+coordinates(o3) <- ~ Longitude + Latitude
+class(o3)
+```
+
+```{r}
+bbox(o3)
+```
+
+```{r}
+hist(o3@data$'Arithmetic Mean')
+```
+
+```{r}
+# Log transform O3 data to meet normally distributed assumption for kriging
+o3@data$'AMLog' <- log(o3@data$'Arithmetic Mean')
 # Histogram of new variable
-hist(ozone@data$'AMLog')
+hist(o3@data$'AMLog')
 ```
+
+```{r}
+show.vgms()
+o3_var.vgm <- variogram(AMLog~1, o3)
+plot(o3_var.vgm)
+```
+
+# PM 2.5
+
 ```{r}
 data(pm25)
-glimpse(pm25) 
+glimpse(pm25)
 class(pm25)
 ```
+
 ```{r}
 coordinates(pm25) <- ~ Longitude + Latitude
 class(pm25)
 ```
+
 ```{r}
 bbox(pm25)
 ```
-```{r}
-pm25@data$'AMLog' <- log(pm25@data$'Arithmetic Mean')
 
+```{r}
+hist(pm25@data$'Arithmetic Mean')
+```
+
+```{r}
+# Log transform PM 2.5 data to meet normally distributed assumption for kriging
+pm25@data$'AMLog' <- log(pm25@data$'Arithmetic Mean')
 # Histogram of new variable
 hist(pm25@data$'AMLog')
 ```
+
+```{r}
+show.vgms()
+pm25_var.vgm <- variogram(AMLog~1, pm25)
+plot(pm25_var.vgm)
+```
+
+
+# Data Mapping
+
+```{r}
+
+```
+
 
