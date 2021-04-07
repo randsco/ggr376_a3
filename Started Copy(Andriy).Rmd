@@ -165,6 +165,9 @@ plot(pm25_var.vgm)
 state_boundaries <- readOGR("state_boundaries.geojson")
 # Reproject data to WGS84 EPSG:4326
 state_boundaries <- spTransform(state_boundaries, CRS("+init=epsg:4326"))
+proj4string(no2) <- CRS("+init=epsg:4326")
+proj4string(o3) <- CRS("+init=epsg:4326")
+proj4string(pm25) <- CRS("+init=epsg:4326")
 # Map boundaries
 leaflet()%>%
   addTiles()%>%
@@ -173,6 +176,7 @@ leaflet()%>%
   addCircleMarkers(data = o3, color = "GREEN", weight = 1, radius = 2)%>%
   addCircleMarkers(data = pm25, color = "RED", weight = 1, radius = 2)
 ```
+
 #Plotting the Fit?????
 ```{r}
 pm25.fit <- fit.variogram(pm25_var.vgm, model = vgm("Sph"))
@@ -250,22 +254,42 @@ grid <- makegrid(SPls, cellsize = 100)
 # Grid Making State Boundary
 
 ```{r}
+# Plot sensors
 plot(no2, col = "BLUE")
 plot(o3, add = TRUE, col = "GREEN")
 plot(pm25, add = TRUE, col = "RED")
 
-grid <- makegrid(state_boundaries, cellsize = 0.5)
+# Generate grid based on bounding box of state_boundaries
+prediction_grid <- makegrid(state_boundaries, cellsize = 0.5)
+class(prediction_grid)
+str(prediction_grid)
+coordinates(prediction_grid) <- ~ x1+x2
+class(prediction_grid)
+# Add grid to plot
+plot(prediction_grid, add = TRUE)
+# Convert grid to SPDF
+spatial_grid <- SpatialPoints(prediction_grid, proj4string = CRS(proj4string(state_boundaries)))
+spatial_grid_clipped <- spatial_grid[state_boundaries, ]
 
-class(grid)
-
-str(grid)
-
-coordinates(grid) <- ~ x1+x2
-
-class(grid)
-
-plot(grid, add = TRUE)
+# Plot spatial grid with sensors
+plot(spatial_grid_clipped)
+plot(no2, add = TRUE, col = "BLUE")
+plot(o3, add = TRUE, col = "GREEN")
+plot(pm25, add = TRUE, col = "RED")
 ```
 
 # IDW Interpolation
+
+```{r}
+idw_pred <- idw(no2@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
+            no2, # Input Data
+            spatial_grid_clipped, # Prediction Locations
+            idp = 2 # Exponent (k)
+            )
+
+class(idw_pred)
+str(idw_pred)
+spplot(idw_pred, "var1.pred")
+```
+
 # Kriging
