@@ -236,7 +236,7 @@ spplot(idw_no2, "var1.pred")
 ```
 
 ```{r}
-LOOCV <- krige.cv(no2@data$`Arithmetic Mean`~1, 
+LOOCV <- krige.cv(`Arithmetic Mean`~1, 
                   no2, 
                   nfold = nrow(no2), # Set the number of folds to the number of rows
                   set = list(idp = 2)
@@ -291,7 +291,6 @@ pm25.vgm <- variogram(AMLog~1, pm25)
 plot(pm25.vgm)
 ```
 
-
 # Fit Variogram
 
 ```{r}
@@ -302,9 +301,7 @@ plot(pm25.vgm, pm25.fit)
 # Predict Kriging Values
 
 ```{r}
-pm25_fixed <- pm25[-zerodist(pm25)[,1],]
-zerodist(pm25_fixed)
-pm25_ordinary_krige <- krige(pm25_fixed@data$AMLog~1, pm25_fixed, spatial_grid_clipped, model=pm25.fit)
+pm25_ordinary_krige <- krige(pm25@data$AMLog~1, pm25, spatial_grid_clipped, model=pm25.fit)
 ```
 
 ```{r}
