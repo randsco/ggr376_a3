@@ -77,14 +77,6 @@ ggplot(data = pm25_copy)+
   coord_fixed()
 ```
 
-
-# Grid Making
-
-```{r}
-
-```
-
-
 # NO2
 
 ```{r}
@@ -181,8 +173,81 @@ leaflet()%>%
   addCircleMarkers(data = o3, color = "GREEN", weight = 1, radius = 2)%>%
   addCircleMarkers(data = pm25, color = "RED", weight = 1, radius = 2)
 ```
+#Plotting the Fit?????
+```{r}
+pm25.fit <- fit.variogram(pm25_var.vgm, model = vgm("Sph"))
 
-# Grid Making
+plot(pm25_var.vgm, pm25)
+```
+## Convex Hull pm25
+```{r}
+convexhull_pm25 <- pm25@coords %>% 
+  chull() 
+convex_hull_pm25_points <- pm25@coords[ convexhull_pm25, ]%>%
+  as.data.frame()
+
+plot(convex_hull_pm25_points)
+
+crds <- coordinates(convex_hull_pm25_points)
+
+poly <- sp::Polygon(crds)
+
+ID <- "Minimum Boundary"
+Pls <- Polygons(list(poly), ID=ID)
+```
+
+# Grid Making Convex Hull
+```{r}
+SPls <- SpatialPolygons(list(Pls))
+plot(SPls)
+class(SPls)
+```
+
+```{r}
+convexhull_o3 <- o3@coords %>% 
+  chull() 
+convex_hull_o3_points <- o3@coords[ convexhull_o3, ]%>%
+  as.data.frame()
+
+plot(convex_hull_o3_points)
+
+crds <- coordinates(convex_hull_o3_points)
+
+poly <- sp::Polygon(crds)
+
+ID <- "Minimum Boundary"
+Pls <- Polygons(list(poly), ID=ID)
+
+SPls <- SpatialPolygons(list(Pls))
+plot(SPls)
+class(SPls)
+```
+
+```{r}
+convexhull_no2 <- no2@coords %>% 
+  chull() 
+convex_hull_no2_points <- no2@coords[ convexhull_no2, ]%>%
+  as.data.frame()
+
+plot(convex_hull_no2_points)
+
+crds <- coordinates(convex_hull_no2_points)
+
+poly <- sp::Polygon(crds)
+
+ID <- "Minimum Boundary"
+Pls <- Polygons(list(poly), ID=ID)
+
+SPls <- SpatialPolygons(list(Pls))
+plot(SPls)
+class(SPls)
+```
+
+```{r}
+grid <- makegrid(SPls, cellsize = 100)
+```
+
+# Grid Making State Boundary
 
 ```{r}
 plot(no2, col = "BLUE")
