@@ -5,6 +5,9 @@ output:
  
   
 ---
+
+# Importing Libraries
+
 ```{r}
 # Import libraries
 library(tidyverse)
@@ -20,6 +23,8 @@ library(latticeExtra)
 library(RColorBrewer)
 library(dplyr)
 ```
+
+# Load Data
 
 ```{r}
 # Read in pollution data from csv
@@ -72,53 +77,64 @@ ggplot(data = pm25_copy)+
   coord_fixed()
 ```
 
+
 # Grid Making
+
 ```{r}
 
 ```
 
-# Kriging
+
 # NO2
 
 ```{r}
+# O3 data preview
 data(no2)
 glimpse(no2)
 class(no2)
+# NO2 convert to SPDF
 coordinates(no2) <- ~ Longitude + Latitude
-class(no2)
-bbox(no2)
 ```
 
 ```{r}
-
+# NO2 pre transform
+class(no2)
+bbox(no2)
 hist(no2@data$'Arithmetic Mean')
 # Log transform NO2 data to meet normally distributed assumption for kriging
 no2@data$'AMLog' <- log(no2@data$'Arithmetic Mean')
 # Histogram of new variable
 hist(no2@data$'AMLog')
-no2_var.vgm <- variogram(AMLog~1, no2)
+# Show variogram models
 show.vgms()
+# NO2 variogram
+no2_var.vgm <- variogram(AMLog~1, no2)
 plot(no2_var.vgm)
 ```
 
 # 03
 
 ```{r}
+# O3 data preview
 data(o3)
 glimpse(o3)
 class(o3)
+# O3 convert to SPDF
 coordinates(o3) <- ~ Longitude + Latitude
-class(o3)
-bbox(o3)
 ```
 
 ```{r}
+# O3 pre transform
+class(o3)
+bbox(o3)
 hist(o3@data$'Arithmetic Mean')
 # Log transform O3 data to meet normally distributed assumption for kriging
 o3@data$'AMLog' <- log(o3@data$'Arithmetic Mean')
 # Histogram of new variable
 hist(o3@data$'AMLog')
+# Show variogram models
 show.vgms()
+# O3 variogram
 o3_var.vgm <- variogram(AMLog~1, o3)
 plot(o3_var.vgm)
 ```
@@ -132,11 +148,11 @@ glimpse(pm25)
 class(pm25)
 # PM 2.5 convert to SPDF
 coordinates(pm25) <- ~ Longitude + Latitude
-class(pm25)
 ```
 
 ```{r}
 # PM 2.5 pre transform
+class(pm25)
 bbox(pm25)
 hist(pm25@data$'Arithmetic Mean')
 # Log transform PM 2.5 data to meet normally distributed assumption for kriging
@@ -158,9 +174,33 @@ state_boundaries <- readOGR("state_boundaries.geojson")
 # Reproject data to WGS84 EPSG:4326
 state_boundaries <- spTransform(state_boundaries, CRS("+init=epsg:4326"))
 # Map boundaries
-leaflet(state_boundaries)%>%
+leaflet()%>%
   addTiles()%>%
-  addPolygons()
+  addPolygons(data = state_boundaries, color = "#aaaaaa", weight = 1.0, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.7)%>%
+  addCircleMarkers(data = no2, color = "BLUE", weight = 1, radius = 2)%>%
+  addCircleMarkers(data = o3, color = "GREEN", weight = 1, radius = 2)%>%
+  addCircleMarkers(data = pm25, color = "RED", weight = 1, radius = 2)
 ```
 
+# Grid Making
 
+```{r}
+plot(no2, col = "BLUE")
+plot(o3, add = TRUE, col = "GREEN")
+plot(pm25, add = TRUE, col = "RED")
+
+grid <- makegrid(state_boundaries, cellsize = 0.5)
+
+class(grid)
+
+str(grid)
+
+coordinates(grid) <- ~ x1+x2
+
+class(grid)
+
+plot(grid, add = TRUE)
+```
+
+# IDW Interpolation
+# Kriging
