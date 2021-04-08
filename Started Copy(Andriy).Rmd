@@ -207,10 +207,10 @@ grid <- makegrid(SPls, cellsize = 100)
 # Generate grid based on bounding box of state_boundaries
 # state_boundaries <- unionSpatialPolygons(state_boundaries, NAME)
 # state_boundaries <- aggregate(state_boundaries, dissolve = TRUE, FUN = sum)
-state_boundaries <- gUnaryUnion(state_boundaries, state_boundaries@data$NAME)
+# state_boundaries <- gUnaryUnion(state_boundaries, state_boundaries@data$NAME)
 
 
-prediction_grid <- makegrid(state_boundaries, cellsize = 0.5)
+prediction_grid <- makegrid(state_boundaries, cellsize = 0.1)
 class(prediction_grid)
 str(prediction_grid)
 coordinates(prediction_grid) <- ~ x1+x2
@@ -220,16 +220,16 @@ class(prediction_grid)
 plot(prediction_grid)
 plot(state_boundaries)
 # Convert grid to SPDF
-#spatial_grid <- SpatialPoints(prediction_grid, proj4string = CRS(proj4string(state_boundaries)))
+spatial_grid <- SpatialPoints(prediction_grid, proj4string = CRS(proj4string(state_boundaries)))
 # Clip to boundary
-#spatial_grid_clipped <- prediction_grid[state_boundaries, ]
+spatial_grid_clipped <- prediction_grid[state_boundaries, ]
 
-# Check which grid cells are in the polygon
-overlap <- sp::over(prediction_grid , state_boundaries)
-overlap # NA were not in poly
-# Select points not NA using !is.na()
-spatial_grid_clipped <- prediction_grid[!is.na(overlap),]
-plot(spatial_grid_clipped)
+# # Check which grid cells are in the polygon
+# overlap <- sp::over(prediction_grid , state_boundaries)
+# overlap # NA were not in poly
+# # Select points not NA using !is.na()
+# spatial_grid_clipped <- prediction_grid[!is.na(overlap),]
+# plot(spatial_grid_clipped)
 
 # Plot spatial grid with sensors
 # plot(spatial_grid_clipped)
@@ -565,6 +565,25 @@ RMSE_resid(LOOCV_krige_pm25@data$residual)
 # Spatial Clustering
 
 ```{r}
+# p2g <- points2grid(points = spatial_grid_clipped)
+# g2n <- grid2nb(grid = p2g, d = p2g@cells.dim)
+# lcosts_idw <- nbcosts(g2n, dpad_idw)
+state_boundaries <- st_read("state_boundaries.shp")
 
+class(no2_ordinary_krige)
+
+dpad_krige <- cbind(idw_no2@data$var1.pred, idw_o3@data$var1.pred, idw_pm25@data$var1.pred)
+#dpad_krige <- data.frame(scale(as.data.frame(state_boundaries)[,5:8]))
+summary(dpad_krige)
+
+krige_nb <- poly2nb(state_boundaries, dpad_krige, 2)
+lcosts_krige <- nbcosts(krige_nb, dpad_krige)
+krige_w <- nb2listw(krige_nb, lcosts_krige, style="B")
+mst_krige <- mstree(krige_w,5)
+
+par(mar=c(0,0,0,0))
+plot(st_geometry(state_boundaries), border=gray(.5))
+plot(mst_krige, coordinates(as(state_boundaries, "Spatial")), col=2, 
+     cex.lab=.6, cex.circles=0.035, fg="blue", add=TRUE)
 ```
 
