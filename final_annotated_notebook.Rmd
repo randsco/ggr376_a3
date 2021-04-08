@@ -1,9 +1,7 @@
 ---
-title: "AndriyZvi - GGR376"
-subtitle: Interpolation
+title: "GGR376 - Assignment 3"
+subtitle: Interpolation of NO2, O3, and Particulate Matter in Arkansas, Louisiana, Oklahoma, Tennessee, and Texas
 output:
- 
-  
 ---
 
 # Importing Libraries
@@ -29,7 +27,7 @@ library(sf)
 ```{r}
 # Read in pollution data from csv
 pollution<-read_csv("annual_conc_by_monitor_2018.csv")
-# Load in state boundaries polygon
+# Load in state boundaries from geojson
 state_boundaries <- readOGR("state_boundaries.geojson")
 ```
 
@@ -46,37 +44,6 @@ pollution_filtered_states_by_parametres<-pollution_filtered_states%>%filter(`Par
 no2 <- pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)" & `Pollutant Standard`=="NO2 1-hour" & Datum=="WGS84")
 o3 <- pollution_filtered_states%>%filter(`Parameter Name`=="Ozone" & `Pollutant Standard`=="Ozone 1-hour 1979" & Datum=="WGS84")
 pm25 <- pollution_filtered_states%>%filter(`Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG" & `Pollutant Standard`=="PM25 24-hour 2012" & Datum=="WGS84")
-no2_copy <- no2
-o3_copy <- o3
-pm25_copy <- pm25
-```
-
-#    Data Pre Plotting
-
-```{r}
-# All sensor data
-ggplot(data = pollution_filtered_states_by_parametres)+
-  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
-  ggtitle("All sensor Arithmetic Means") + 
-  coord_fixed()
-
-# NO2 sensors
-ggplot(data = no2_copy)+
-  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
-  ggtitle("NO2 sensor Arithmetic Means") + 
-  coord_fixed()
-
-# O3 sensors
-ggplot(data = o3_copy)+
-  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
-  ggtitle("O3 sensor Arithmetic Means") + 
-  coord_fixed()
-
-# PM 2.5 sensors
-ggplot(data = pm25_copy)+
-  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
-  ggtitle("PM 2.5 sensor Arithmetic Means") + 
-  coord_fixed()
 ```
 
 # Convert Data to SPDF and Project
@@ -113,10 +80,10 @@ proj4string(pm25) <- CRS("+init=epsg:4326")
 pm25 <- spTransform(pm25, CRS("+init=epsg:4326"))
 ```
 
-#    Data Mapping
+# Data Mapping
 
 ```{r}
-# Map boundaries
+# Map study area and sensor locations
 leaflet()%>%
   addTiles()%>%
   addPolygons(data = state_boundaries, color = "#aaaaaa", weight = 1.0, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.7)%>%
@@ -126,95 +93,19 @@ leaflet()%>%
 ```
 
 
-#    Convex Hull pm25
-```{r}
-# convexhull_pm25 <- pm25@coords %>% 
-#   chull() 
-# convex_hull_pm25_points <- pm25@coords[ convexhull_pm25, ]%>%
-#   as.data.frame()
-# 
-# plot(convex_hull_pm25_points)
-# 
-# crds <- coordinates(convex_hull_pm25_points)
-# 
-# poly <- sp::Polygon(crds)
-# 
-# ID <- "Minimum Boundary"
-# Pls <- Polygons(list(poly), ID=ID)
-```
-
-#    Grid Making Convex Hull
-```{r}
-# SPls <- SpatialPolygons(list(Pls))
-# plot(SPls)
-# class(SPls)
-```
-
-```{r}
-convexhull_o3 <- o3@coords %>% 
-  chull() 
-convex_hull_o3_points <- o3@coords[ convexhull_o3, ]%>%
-  as.data.frame()
-
-plot(convex_hull_o3_points)
-
-crds <- coordinates(convex_hull_o3_points)
-
-poly <- sp::Polygon(crds)
-
-ID <- "Minimum Boundary"
-Pls <- Polygons(list(poly), ID=ID)
-
-SPls <- SpatialPolygons(list(Pls))
-plot(SPls)
-class(SPls)
-```
-
-```{r}
-convexhull_no2 <- no2@coords %>% 
-  chull() 
-convex_hull_no2_points <- no2@coords[ convexhull_no2, ]%>%
-  as.data.frame()
-
-plot(convex_hull_no2_points)
-
-crds <- coordinates(convex_hull_no2_points)
-
-poly <- sp::Polygon(crds)
-
-ID <- "Minimum Boundary"
-Pls <- Polygons(list(poly), ID=ID)
-
-SPls <- SpatialPolygons(list(Pls))
-plot(SPls)
-class(SPls)
-```
-
-```{r}
-grid <- makegrid(SPls, cellsize = 100)
-```
-
 # Grid Making State Boundary
 
 ```{r}
-# Plot sensors
-# plot(no2, col = "BLUE")
-# plot(o3, add = TRUE, col = "GREEN")
-# plot(pm25, add = TRUE, col = "RED")
-
-# Generate grid based on bounding box of state_boundaries
-# state_boundaries <- unionSpatialPolygons(state_boundaries, NAME)
-# state_boundaries <- aggregate(state_boundaries, dissolve = TRUE, FUN = sum)
-# state_boundaries <- gUnaryUnion(state_boundaries, state_boundaries@data$NAME)
-
-
+# Create grid based on bbox of state_boundaries
 prediction_grid <- makegrid(state_boundaries, cellsize = 0.1)
 class(prediction_grid)
 str(prediction_grid)
+# Make grid spatial
 coordinates(prediction_grid) <- ~ x1+x2
+# Add projection string to grid
 proj4string(prediction_grid) <- CRS("+init=epsg:4326")
 class(prediction_grid)
-# Add grid to plot
+# Preview 
 plot(prediction_grid)
 plot(state_boundaries)
 # Convert grid to SPDF
@@ -222,248 +113,201 @@ spatial_grid <- SpatialPoints(prediction_grid, proj4string = CRS(proj4string(sta
 # Clip to boundary
 spatial_grid_clipped <- prediction_grid[state_boundaries, ]
 
-# # Check which grid cells are in the polygon
-# overlap <- sp::over(prediction_grid , state_boundaries)
-# overlap # NA were not in poly
-# # Select points not NA using !is.na()
-# spatial_grid_clipped <- prediction_grid[!is.na(overlap),]
-# plot(spatial_grid_clipped)
-
-# Plot spatial grid with sensors
-# plot(spatial_grid_clipped)
-# plot(no2, add = TRUE, col = "BLUE")
-# plot(o3, add = TRUE, col = "GREEN")
-# plot(pm25, add = TRUE, col = "RED")
+# Plot spatial grid with sensor locations
+plot(spatial_grid_clipped)
+plot(no2, add = TRUE, col = "BLUE")
+plot(o3, add = TRUE, col = "GREEN")
+plot(pm25, add = TRUE, col = "RED")
 ```
 
-
+# IDW Interpolation NO2
 ```{r}
-no2@data$AM <- no2@data$'Arithmetic Mean'
-LOOCV <- krige.cv(AM ~ 1,
-                  no2,
-                  nfold = nrow(no2),
-                  set = list(idp = 2)
-                  )
-```
-#IDW OF PM2.5
-```{r}
-idw_pm25 <- idw(pm25@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
-            pm25, # Input Data
-            spatial_grid_clipped, # Prediction Locations
-            idp = 2 # Exponent (k)
-            )
-
-class(idw_pm25)
-str(idw_pm25)
-spplot(idw_pm25, "var1.pred")
-```
-#PM25 LOOCV K=2 (Too High)
-```{r}
-pm25@data$AM <- pm25@data$'Arithmetic Mean'
-LOOCV_PM25_IDW <- krige.cv(AM ~ 1,
-                  pm25,
-                  nfold = nrow(pm25),
-                  set = list(idp = 2)
-                  )
-
-str(LOOCV_PM25_IDW)
-LOOCV_PM25_IDW@data
-spplot(LOOCV_PM25_IDW, "residual")
-
-LOOCV_PM25_IDW@data$residual ^ 2 %>%
-  mean() %>%
-  sqrt()
-
-
-```
-#PM25 LOOCV K=3 (Just Right)
-```{r}
-pm25@data$AM <- pm25@data$'Arithmetic Mean'
-LOOCV_PM25_IDW<- krige.cv(AM ~ 1,
-                  pm25,
-                  nfold = nrow(pm25),
-                  set = list(idp = 3)
-                  )
-
-str(LOOCV_PM25_IDW)
-LOOCV_PM25_IDW@data
-spplot(LOOCV_PM25_IDW, "residual")
-
-LOOCV_PM25_IDW@data$residual ^ 2 %>%
-  mean() %>%
-  sqrt()
-
-```
-##PM25 LOOCV 2.5 K4(Too high)
-```{r}
-pm25@data$AM <- pm25@data$'Arithmetic Mean'
-LOOCV_PM25_IDW <- krige.cv(AM ~ 1,
-                  pm25,
-                  nfold = nrow(pm25),
-                  set = list(idp = 4)
-                  )
-
-str(LOOCV_PM25_IDW)
-LOOCV_PM25_IDW@data
-spplot(LOOCV_PM25_IDW, "residual")
-
-LOOCV_PM25_IDW@data$residual ^ 2 %>%
-  mean() %>%
-  sqrt()
-
-RMSE_resid <- function(x){
-  return(sqrt(mean(x^2)))
-} 
-RMSE_resid(LOOCV@data$residual)
-```
-#IDW Interpolation Ozone
-```{r}
-idw_o3 <- idw(o3@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
-            o3, # Input Data
-            spatial_grid_clipped, # Prediction Locations
-            idp = 2 # Exponent (k)
-            )
-
-class(idw_o3)
-str(idw_o3)
-spplot(idw_o3, "var1.pred")
-```
-#Ozone LOOCV 2
-```{r}
-o3@data$AM <- o3@data$'Arithmetic Mean'
-LOOCV_o3_IDW <- krige.cv(AM ~ 1,
-                  o3,
-                  nfold = nrow(o3),
-                  set = list(idp = 2)
-                  )
-
-str(LOOCV_o3_IDW)
-LOOCV_o3_IDW@data
-spplot(LOOCV_o3_IDW, "residual")
-
-LOOCV_o3_IDW@data$residual ^ 2 %>%
-  mean() %>%
-  sqrt()
-
-```
-#IDW LOOCV 3(just right)
-```{r}
-o3@data$AM <- o3@data$'Arithmetic Mean'
-LOOCV_o3_IDW <- krige.cv(AM ~ 1,
-                  o3,
-                  nfold = nrow(o3),
-                  set = list(idp = 3)
-                  )
-
-str(LOOCV_o3_IDW)
-LOOCV_o3_IDW@data
-spplot(LOOCV_o3_IDW, "residual")
-
-LOOCV_o3_IDW@data$residual ^ 2 %>%
-  mean() %>%
-  sqrt()
-
-```
-##LOOCV Ozone 4
-```{r}
-o3@data$AM <- o3@data$'Arithmetic Mean'
-LOOCV_o3_IDW <- krige.cv(AM ~ 1,
-                  o3,
-                  nfold = nrow(o3),
-                  set = list(idp = 4)
-                  )
-
-str(LOOCV_o3_IDW)
-LOOCV_o3_IDW@data
-spplot(LOOCV_o3_IDW, "residual")
-
-LOOCV_o3_IDW@data$residual ^ 2 %>%
-  mean() %>%
-  sqrt()
-```
-##IDW OF NITROGEN OXIDE
-```{r}
+# Initial interpolation of values to prediction grid
 idw_no2 <- idw(no2@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
             no2, # Input Data
             spatial_grid_clipped, # Prediction Locations
             idp = 2 # Exponent (k)
             )
-
-class(idw_no2)
-str(idw_no2)
+# Plot interpolated values
 spplot(idw_no2, "var1.pred")
-```
 
-#LOOCV Interpolation 2
-```{r}
+# LOOCV Interpolation 2
 no2@data$AM <- no2@data$'Arithmetic Mean'
 LOOCV_no2_IDW <- krige.cv(AM ~ 1,
                   no2,
                   nfold = nrow(no2),
                   set = list(idp = 2)
                   )
-
-# TEST LOOCV CODE
-# # Preview LOOCV
-# str(LOOCV)
-# LOOCV@data
-# # Plot LOOCV
-# spplot(LOOCV, "residual")
-# 
-# # Measure of Fit
-# LOOCV@data$residual ^ 2 %>%
-#   mean() %>%
-#   sqrt()
-# # Define function to calculate measure of fit for all
-# RMSE_resid <- function(x){
-#   return(sqrt(mean(x^2)))
-# }
-# # Run function
-# RMSE_resid(LOOCV@data$residual)
-
-str(LOOCV_no2_IDW)
-LOOCV_no2_IDW@data
+# Plot residuals
 spplot(LOOCV_no2_IDW, "residual")
-
+# Calculate RMSE
 LOOCV_no2_IDW@data$residual ^ 2 %>%
   mean() %>%
   sqrt()
-```
-## LOOCV 3 Nitrogen Oxide (Higher)
-```{r}
-no2@data$AM <- no2@data$'Arithmetic Mean'
+
+# LOOCV 3 Nitrogen Oxide (Higher)
 LOOCV_no2_IDW <- krige.cv(AM ~ 1,
                   no2,
                   nfold = nrow(no2),
                   set = list(idp = 3)
                   )
-
-str(LOOCV_no2_IDW)
-LOOCV_no2_IDW@data
+# Plot residuals
 spplot(LOOCV_no2_IDW, "residual")
-
+# Calculate RMSE
 LOOCV_no2_IDW@data$residual ^ 2 %>%
   mean() %>%
   sqrt()
-```
-## LOOCV OZONE 1 (LOWER)
-```{r}
-no2@data$AM <- no2@data$'Arithmetic Mean'
+
+# LOOCV OZONE 1 (LOWER)
 LOOCV_no2_IDW <- krige.cv(AM ~ 1,
                   no2,
                   nfold = nrow(no2),
                   set = list(idp = 1)
                   )
-
-str(LOOCV_no2_IDW)
-LOOCV_no2_IDW@data
+# Plot residuals
 spplot(LOOCV_no2_IDW, "residual")
-
+# Calculate RMSE
 LOOCV_no2_IDW@data$residual ^ 2 %>%
   mean() %>%
   sqrt()
+
+# Final interpolation of values to prediction grid
+idw_no2 <- idw(no2@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
+            no2, # Input Data
+            spatial_grid_clipped, # Prediction Locations
+            idp = 2 # Exponent (k)
+            )
+# Plot interpolated values
+spplot(idw_no2, "var1.pred")
 ```
 
+# IDW Interpolation O3
+```{r}
+# Initial interpolation of values to prediction grid
+idw_o3 <- idw(o3@data$`Arithmetic Mean` ~ 1,
+            o3,
+            spatial_grid_clipped,
+            idp = 2
+            )
+# Plot interpolated values
+spplot(idw_o3, "var1.pred")
+
+# O3 LOOCV 2
+o3@data$AM <- o3@data$'Arithmetic Mean'
+LOOCV_o3_IDW <- krige.cv(AM ~ 1,
+                  o3,
+                  nfold = nrow(o3),
+                  set = list(idp = 2)
+                  )
+# Plot residuals
+spplot(LOOCV_o3_IDW, "residual")
+# Calculate RMSE
+LOOCV_o3_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+# O3 LOOCV 3
+LOOCV_o3_IDW <- krige.cv(AM ~ 1,
+                  o3,
+                  nfold = nrow(o3),
+                  set = list(idp = 3)
+                  )
+# Plot residuals
+spplot(LOOCV_o3_IDW, "residual")
+# Calculate RMSE
+LOOCV_o3_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+# LOOCV Ozone 4
+LOOCV_o3_IDW <- krige.cv(AM ~ 1,
+                  o3,
+                  nfold = nrow(o3),
+                  set = list(idp = 4)
+                  )
+# Plot residuals
+spplot(LOOCV_o3_IDW, "residual")
+# Calculate RMSE
+LOOCV_o3_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+# Final interpolation of values to prediction grid
+idw_o3 <- idw(o3@data$`Arithmetic Mean` ~ 1,
+            o3,
+            spatial_grid_clipped,
+            idp = 3
+            )
+# Plot interpolated values
+spplot(idw_o3, "var1.pred")
+```
+
+# IDW Interpolation PM 2.5
+```{r}
+# Initial interpolation of values to prediction grid
+idw_pm25 <- idw(pm25@data$`Arithmetic Mean` ~ 1,
+            pm25,
+            spatial_grid_clipped,
+            idp = 2
+            )
+# Plot interpolated values
+spplot(idw_pm25, "var1.pred")
+
+# Define RMSE residual function
+RMSE_resid <- function(x){
+  return(sqrt(mean(x^2)))
+}
+
+# PM 2.5 LOOCV K=2 (Too High)
+pm25@data$AM <- pm25@data$'Arithmetic Mean'
+LOOCV_PM25_IDW <- krige.cv(AM ~ 1,
+                  pm25,
+                  nfold = nrow(pm25),
+                  set = list(idp = 2)
+                  )
+# Plot residuals
+spplot(LOOCV_PM25_IDW, "residual")
+# Calculate RMSE
+RMSE_resid(LOOCV@data$residual)
+LOOCV_PM25_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+# PM 2.5 LOOCV K=3 (Just Right)
+LOOCV_PM25_IDW<- krige.cv(AM ~ 1,
+                  pm25,
+                  nfold = nrow(pm25),
+                  set = list(idp = 3)
+                  )
+# Plot residuals
+spplot(LOOCV_PM25_IDW, "residual")
+# Calculate RMSE
+LOOCV_PM25_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+# PM 2.5 LOOCV 2.5 K=4 (Too high)
+LOOCV_PM25_IDW <- krige.cv(AM ~ 1,
+                  pm25,
+                  nfold = nrow(pm25),
+                  set = list(idp = 4)
+                  )
+# Plot residuals
+spplot(LOOCV_PM25_IDW, "residual")
+# Calculate RMSE
+LOOCV_PM25_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+# Final interpolation of values to prediction grid
+idw_pm25 <- idw(pm25@data$`Arithmetic Mean` ~ 1,
+            pm25,
+            spatial_grid_clipped,
+            idp = 3
+            )
+# Plot interpolated values
+spplot(idw_pm25, "var1.pred")
+```
 # Kriging
 # Data Transforming
 
@@ -530,36 +374,26 @@ plot(pm25.vgm, pm25.fit)
 ```{r}
 no2_ordinary_krige <- krige(AMLog~1, no2, spatial_grid_clipped, model=no2.fit)
 o3_ordinary_krige <- krige(AMLog~1, o3, spatial_grid_clipped, model=o3.fit)
+# Remove duplicates
 pm25 = pm25[which(!duplicated(pm25@coords)), ]
 pm25_ordinary_krige <- krige(AMLog~1, pm25, spatial_grid_clipped, model=pm25.fit)
-
-# # pm25_fixed <- pm25[-zerodist(pm25)[,1],]
-# # zerodist(pm25_fixed)
-# 
-# # pm25_fixed <- pm25[which(!duplicated(pm25@data$`Site Num`)), ]
-# 
-# pm25_fixed = pm25[which(!duplicated(pm25@coords)), ]
-# 
-# #pm25_ordinary_krige <- krige.cv(AMLog~1,pm25)
-# pm25_ordinary_krige <- krige.cv(AMLog~1, pm25_fixed, spatial_grid_clipped, model=pm25.fit)
-# #pm25_ordinary_krige <- krige.cv(AMLog~1, pm25, spatial_grid_clipped, model=pm25.fit)
 ```
 
 ```{r}
+# Kriging NO2
 spplot(no2_ordinary_krige, "var1.pred")
-str(no2_ordinary_krige)
 LOOCV_krige_no2 <-krige.cv(AMLog~1, no2, model=no2.fit)
 LOOCV_krige_no2@data$residual
 RMSE_resid(LOOCV_krige_no2@data$residual)
 
+# Kriging O3
 spplot(o3_ordinary_krige, "var1.pred")
-str(o3_ordinary_krige)
 LOOCV_krige_o3 <-krige.cv(AMLog~1, o3, model=o3.fit)
 LOOCV_krige_o3@data$residual
 RMSE_resid(LOOCV_krige_o3@data$residual)
 
+# Kriging PM 2.5
 spplot(pm25_ordinary_krige, "var1.pred")
-str(pm25_ordinary_krige)
 LOOCV_krige_pm25 <-krige.cv(AMLog~1, pm25, model=pm25.fit)
 LOOCV_krige_pm25@data$residual
 RMSE_resid(LOOCV_krige_pm25@data$residual)
@@ -568,14 +402,8 @@ RMSE_resid(LOOCV_krige_pm25@data$residual)
 # Spatial Clustering
 
 ```{r}
-# p2g <- points2grid(points = spatial_grid_clipped)
-# g2n <- grid2nb(grid = p2g, d = p2g@cells.dim)
-# lcosts_idw <- nbcosts(g2n, dpad_idw)
-# state_boundaries <- st_read("state_boundaries.shp")
 
-class(no2_ordinary_krige)
-
-dpad_krige <- cbind(idw_no2@data$var1.pred, idw_o3@data$var1.pred, idw_pm25@data$var1.pred)
+dpad_krige <- cbind(no2_ordinary_krige@data$var1.pred, idw_o3@data$var1.pred, pm25_ordinary_krige@data$var1.pred)
 #dpad_krige <- data.frame(scale(as.data.frame(state_boundaries)[,5:8]))
 summary(dpad_krige)
 
@@ -606,4 +434,3 @@ plot(res1, coordinates(state_boundaries), cex.circles=0.035, cex.lab=.7,
 ### the Spatial Polygons plot
 plot(state_boundaries, col=heat.colors(length(res1$edg))[res1$groups])
 ```
-
