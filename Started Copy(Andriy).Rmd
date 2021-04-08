@@ -259,6 +259,22 @@ LOOCV <- krige.cv(AM ~ 1,
                   nfold = nrow(no2),
                   set = list(idp = 2)
                   )
+# Preview LOOCV
+str(LOOCV)
+LOOCV@data
+# Plot LOOCV
+spplot(LOOCV, "residual")
+
+# Measure of Fit
+LOOCV@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+# Define function to calculate measure of fit for all
+RMSE_resid <- function(x){
+  return(sqrt(mean(x^2)))
+}
+# Run function
+RMSE_resid(LOOCV@data$residual)
 ```
 
 
@@ -299,7 +315,7 @@ class(pm25)
 bbox(pm25)
 hist(pm25@data$'Arithmetic Mean')
 # Log transform PM 2.5 data to meet normally distributed assumption for kriging
-pm25@data$AMLog <- log(pm25@data$'Arithmetic Mean')
+pm25@data$AMLog <- pm25@data$'Arithmetic Mean'
 # Histogram of new variable
 hist(pm25@data$AMLog)
 # Show variogram models
@@ -313,26 +329,55 @@ plot(pm25.vgm)
 # Fit Variogram
 
 ```{r}
-pm25.fit <- fit.variogram(pm25.vgm, model = vgm(1, "Log", 1))
+# Fit NO2 data
+no2.fit <- fit.variogram(no2.vgm, model = vgm("Pen"))
+plot(no2.vgm, no2.fit)
+# Fit O3 data
+o3.fit <- fit.variogram(o3.vgm, model = vgm("Bes"))
+plot(o3.vgm, o3.fit)
+# Fit PM 2.5 data
+pm25.fit <- fit.variogram(pm25.vgm, model = vgm("Gau"))
 plot(pm25.vgm, pm25.fit)
 ```
 
 # Predict Kriging Values
 
 ```{r}
-# pm25_fixed <- pm25[-zerodist(pm25)[,1],]
-# zerodist(pm25_fixed)
+no2_ordinary_krige <- krige(AMLog~1, no2, spatial_grid_clipped, model=no2.fit)
+o3_ordinary_krige <- krige(AMLog~1, o3, spatial_grid_clipped, model=o3.fit)
+pm25 = pm25[which(!duplicated(pm25@coords)), ]
+pm25_ordinary_krige <- krige(AMLog~1, pm25, spatial_grid_clipped, model=pm25.fit)
 
-# pm25_fixed <- pm25[which(!duplicated(pm25@data$`Site Num`)), ]
-
-pm25_fixed = pm25[which(!duplicated(pm25@coords)), ]
-
-#pm25_ordinary_krige <- krige.cv(AMLog~1,pm25)
-pm25_ordinary_krige <- krige.cv(AMLog~1, pm25_fixed, spatial_grid_clipped, model=pm25.fit)
-#pm25_ordinary_krige <- krige.cv(AMLog~1, pm25, spatial_grid_clipped, model=pm25.fit)
+# # pm25_fixed <- pm25[-zerodist(pm25)[,1],]
+# # zerodist(pm25_fixed)
+# 
+# # pm25_fixed <- pm25[which(!duplicated(pm25@data$`Site Num`)), ]
+# 
+# pm25_fixed = pm25[which(!duplicated(pm25@coords)), ]
+# 
+# #pm25_ordinary_krige <- krige.cv(AMLog~1,pm25)
+# pm25_ordinary_krige <- krige.cv(AMLog~1, pm25_fixed, spatial_grid_clipped, model=pm25.fit)
+# #pm25_ordinary_krige <- krige.cv(AMLog~1, pm25, spatial_grid_clipped, model=pm25.fit)
 ```
 
 ```{r}
+spplot(no2_ordinary_krige, "var1.pred")
+str(no2_ordinary_krige)
+LOOCV_krige_no2 <-krige.cv(AMLog~1, no2, model=no2.fit)
+LOOCV_krige_no2@data$residual
+RMSE_resid(LOOCV_krige_no2@data$residual)
+
+spplot(o3_ordinary_krige, "var1.pred")
+str(o3_ordinary_krige)
+LOOCV_krige_o3 <-krige.cv(AMLog~1, o3, model=o3.fit)
+LOOCV_krige_o3@data$residual
+RMSE_resid(LOOCV_krige_o3@data$residual)
+
 spplot(pm25_ordinary_krige, "var1.pred")
+str(pm25_ordinary_krige)
+LOOCV_krige_pm25 <-krige.cv(AMLog~1, pm25, model=pm25.fit)
+LOOCV_krige_pm25@data$residual
+RMSE_resid(LOOCV_krige_pm25@data$residual)
 ```
 
+# 
