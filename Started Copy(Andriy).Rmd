@@ -238,8 +238,152 @@ plot(spatial_grid_clipped)
 # plot(pm25, add = TRUE, col = "RED")
 ```
 
-# IDW Interpolation
 
+```{r}
+no2@data$AM <- no2@data$'Arithmetic Mean'
+LOOCV <- krige.cv(AM ~ 1,
+                  no2,
+                  nfold = nrow(no2),
+                  set = list(idp = 2)
+                  )
+```
+#IDW OF PM2.5
+```{r}
+idw_pm25 <- idw(pm25@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
+            pm25, # Input Data
+            spatial_grid_clipped, # Prediction Locations
+            idp = 2 # Exponent (k)
+            )
+
+class(idw_pm25)
+str(idw_pm25)
+spplot(idw_pm25, "var1.pred")
+```
+#PM25 LOOCV K=2 (Too High)
+```{r}
+pm25@data$AM <- pm25@data$'Arithmetic Mean'
+LOOCV_PM25_IDW <- krige.cv(AM ~ 1,
+                  pm25,
+                  nfold = nrow(pm25),
+                  set = list(idp = 2)
+                  )
+
+str(LOOCV_PM25_IDW)
+LOOCV_PM25_IDW@data
+spplot(LOOCV_PM25_IDW, "residual")
+
+LOOCV_PM25_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+
+```
+#PM25 LOOCV K=3 (Just Right)
+```{r}
+pm25@data$AM <- pm25@data$'Arithmetic Mean'
+LOOCV_PM25_IDW<- krige.cv(AM ~ 1,
+                  pm25,
+                  nfold = nrow(pm25),
+                  set = list(idp = 3)
+                  )
+
+str(LOOCV_PM25_IDW)
+LOOCV_PM25_IDW@data
+spplot(LOOCV_PM25_IDW, "residual")
+
+LOOCV_PM25_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+```
+##PM25 LOOCV 2.5 K4(Too high)
+```{r}
+pm25@data$AM <- pm25@data$'Arithmetic Mean'
+LOOCV_PM25_IDW <- krige.cv(AM ~ 1,
+                  pm25,
+                  nfold = nrow(pm25),
+                  set = list(idp = 4)
+                  )
+
+str(LOOCV_PM25_IDW)
+LOOCV_PM25_IDW@data
+spplot(LOOCV_PM25_IDW, "residual")
+
+LOOCV_PM25_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+RMSE_resid <- function(x){
+  return(sqrt(mean(x^2)))
+} 
+RMSE_resid(LOOCV@data$residual)
+```
+#IDW Interpolation Ozone
+```{r}
+idw_o3 <- idw(o3@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
+            o3, # Input Data
+            spatial_grid_clipped, # Prediction Locations
+            idp = 2 # Exponent (k)
+            )
+
+class(idw_o3)
+str(idw_o3)
+spplot(idw_o3, "var1.pred")
+```
+#Ozone LOOCV 2
+```{r}
+o3@data$AM <- o3@data$'Arithmetic Mean'
+LOOCV_o3_IDW <- krige.cv(AM ~ 1,
+                  o3,
+                  nfold = nrow(o3),
+                  set = list(idp = 2)
+                  )
+
+str(LOOCV_o3_IDW)
+LOOCV_o3_IDW@data
+spplot(LOOCV_o3_IDW, "residual")
+
+LOOCV_o3_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+```
+#IDW LOOCV 3(just right)
+```{r}
+o3@data$AM <- o3@data$'Arithmetic Mean'
+LOOCV_o3_IDW <- krige.cv(AM ~ 1,
+                  o3,
+                  nfold = nrow(o3),
+                  set = list(idp = 3)
+                  )
+
+str(LOOCV_o3_IDW)
+LOOCV_o3_IDW@data
+spplot(LOOCV_o3_IDW, "residual")
+
+LOOCV_o3_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+
+```
+##LOOCV Ozone 4
+```{r}
+o3@data$AM <- o3@data$'Arithmetic Mean'
+LOOCV_o3_IDW <- krige.cv(AM ~ 1,
+                  o3,
+                  nfold = nrow(o3),
+                  set = list(idp = 4)
+                  )
+
+str(LOOCV_o3_IDW)
+LOOCV_o3_IDW@data
+spplot(LOOCV_o3_IDW, "residual")
+
+LOOCV_o3_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+```
+##IDW OF NITROGEN OXIDE
 ```{r}
 idw_no2 <- idw(no2@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
             no2, # Input Data
@@ -252,31 +396,75 @@ str(idw_no2)
 spplot(idw_no2, "var1.pred")
 ```
 
+#LOOCV Interpolation 2
 ```{r}
 no2@data$AM <- no2@data$'Arithmetic Mean'
-LOOCV <- krige.cv(AM ~ 1,
+LOOCV_no2_IDW <- krige.cv(AM ~ 1,
                   no2,
                   nfold = nrow(no2),
                   set = list(idp = 2)
                   )
-# Preview LOOCV
-str(LOOCV)
-LOOCV@data
-# Plot LOOCV
-spplot(LOOCV, "residual")
 
-# Measure of Fit
-LOOCV@data$residual ^ 2 %>%
+# TEST LOOCV CODE
+# # Preview LOOCV
+# str(LOOCV)
+# LOOCV@data
+# # Plot LOOCV
+# spplot(LOOCV, "residual")
+# 
+# # Measure of Fit
+# LOOCV@data$residual ^ 2 %>%
+#   mean() %>%
+#   sqrt()
+# # Define function to calculate measure of fit for all
+# RMSE_resid <- function(x){
+#   return(sqrt(mean(x^2)))
+# }
+# # Run function
+# RMSE_resid(LOOCV@data$residual)
+
+str(LOOCV_no2_IDW)
+LOOCV_no2_IDW@data
+spplot(LOOCV_no2_IDW, "residual")
+
+LOOCV_no2_IDW@data$residual ^ 2 %>%
   mean() %>%
   sqrt()
-# Define function to calculate measure of fit for all
-RMSE_resid <- function(x){
-  return(sqrt(mean(x^2)))
-}
-# Run function
-RMSE_resid(LOOCV@data$residual)
 ```
+## LOOCV 3 Nitrogen Oxide (Higher)
+```{r}
+no2@data$AM <- no2@data$'Arithmetic Mean'
+LOOCV_no2_IDW <- krige.cv(AM ~ 1,
+                  no2,
+                  nfold = nrow(no2),
+                  set = list(idp = 3)
+                  )
 
+str(LOOCV_no2_IDW)
+LOOCV_no2_IDW@data
+spplot(LOOCV_no2_IDW, "residual")
+
+LOOCV_no2_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+```
+## LOOCV OZONE 1 (LOWER)
+```{r}
+no2@data$AM <- no2@data$'Arithmetic Mean'
+LOOCV_no2_IDW <- krige.cv(AM ~ 1,
+                  no2,
+                  nfold = nrow(no2),
+                  set = list(idp = 1)
+                  )
+
+str(LOOCV_no2_IDW)
+LOOCV_no2_IDW@data
+spplot(LOOCV_no2_IDW, "residual")
+
+LOOCV_no2_IDW@data$residual ^ 2 %>%
+  mean() %>%
+  sqrt()
+```
 
 # Kriging
 # Data Transforming
@@ -324,7 +512,6 @@ show.vgms()
 pm25.vgm <- variogram(AMLog~1, pm25)
 plot(pm25.vgm)
 ```
-
 
 # Fit Variogram
 
@@ -380,4 +567,9 @@ LOOCV_krige_pm25@data$residual
 RMSE_resid(LOOCV_krige_pm25@data$residual)
 ```
 
-# 
+# Spatial Clustering
+
+```{r}
+
+```
+

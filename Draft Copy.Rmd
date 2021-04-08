@@ -1,0 +1,372 @@
+---
+title: "AndriyZvi - GGR376"
+subtitle: Interpolation
+output:
+ 
+  
+---
+
+# Importing Libraries
+
+```{r}
+# Import libraries
+library(tidyverse)
+library(leaflet)
+library(rgdal)
+library(sp)
+library(gapminder)
+library(gstat)
+
+# Import stolen libraries
+library(spdep)
+library(latticeExtra)
+library(RColorBrewer)
+library(dplyr)
+```
+
+# Load Data
+
+```{r}
+# Read in pollution data from csv
+pollution<-read_csv("annual_conc_by_monitor_2018.csv")
+```
+
+# Data Filtering
+
+```{r}
+
+# Filter pollution data by state
+pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennessee" | `State Name`=="Louisiana" | `State Name`=="Oklahoma" | `State Name`== "Texas" )
+
+# Filter pollution data by sensor
+pollution_filtered_states_by_parametres<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)"| `Parameter Name`=="Ozone" | `Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG")
+
+# Split up pollution data by sensor
+no2 <- pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)")
+o3 <- pollution_filtered_states%>%filter(`Parameter Name`=="Ozone")
+pm25 <- pollution_filtered_states%>%filter(`Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG")
+no2_copy <- no2
+o3_copy <- o3
+pm25_copy <- pm25
+```
+
+# Data Plotting
+
+```{r}
+# All sensor data
+ggplot(data = pollution_filtered_states_by_parametres)+
+  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
+  ggtitle("All sensor Arithmetic Means") + 
+  coord_fixed()
+
+# NO2 sensors
+ggplot(data = no2_copy)+
+  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
+  ggtitle("NO2 sensor Arithmetic Means") + 
+  coord_fixed()
+
+# O3 sensors
+ggplot(data = o3_copy)+
+  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
+  ggtitle("O3 sensor Arithmetic Means") + 
+  coord_fixed()
+
+# PM 2.5 sensors
+ggplot(data = pm25_copy)+
+  geom_point(mapping = aes(x = Longitude, y = Latitude, size = `Arithmetic Mean`), color = "brown", alpha = 3/4) +
+  ggtitle("PM 2.5 sensor Arithmetic Means") + 
+  coord_fixed()
+```
+
+# NO2
+
+```{r}
+# O3 data preview
+data(no2)
+glimpse(no2)
+class(no2)
+# NO2 convert to SPDF
+coordinates(no2) <- ~ Longitude + Latitude
+```
+
+```{r}
+# NO2 pre transform
+class(no2)
+bbox(no2)
+hist(no2@data$'Arithmetic Mean')
+# Log transform NO2 data to meet normally distributed assumption for kriging
+no2@data$'AMLog' <- log(no2@data$'Arithmetic Mean')
+# Histogram of new variable
+hist(no2@data$'AMLog')
+# Show variogram models
+show.vgms()
+# NO2 variogram
+no2_var.vgm <- variogram(AMLog~1, no2)
+plot(no2_var.vgm)
+```
+
+# 03
+
+```{r}
+# O3 data preview
+data(o3)
+glimpse(o3)
+class(o3)
+# O3 convert to SPDF
+coordinates(o3) <- ~ Longitude + Latitude
+```
+
+```{r}
+# O3 pre transform
+class(o3)
+bbox(o3)
+hist(o3@data$'Arithmetic Mean')
+# Log transform O3 data to meet normally distributed assumption for kriging
+o3@data$'AMLog' <- log(o3@data$'Arithmetic Mean')
+# Histogram of new variable
+hist(o3@data$'AMLog')
+# Show variogram models
+show.vgms()
+# O3 variogram
+o3_var.vgm <- variogram(AMLog~1, o3)
+plot(o3_var.vgm)
+```
+
+# PM 2.5
+
+```{r}
+# PM 2.5 data preview
+data(pm25)
+glimpse(pm25)
+class(pm25)
+# PM 2.5 convert to SPDF
+coordinates(pm25) <- ~ Longitude + Latitude
+```
+
+```{r}
+# PM 2.5 pre transform
+class(pm25)
+bbox(pm25)
+hist(pm25@data$'Arithmetic Mean')
+# Log transform PM 2.5 data to meet normally distributed assumption for kriging
+pm25@data$'AMLog' <- log(pm25@data$'Arithmetic Mean')
+# Histogram of new variable
+hist(pm25@data$'AMLog')
+# Show variogram models
+show.vgms()
+# PM 2.5 variogram
+pm25_var.vgm <- variogram(AMLog~1, pm25)
+plot(pm25_var.vgm)
+```
+
+# Data Mapping
+
+```{r}
+# Load in state boundaries polygon
+state_boundaries <- readOGR("state_boundaries.geojson")
+# Reproject data to WGS84 EPSG:4326
+state_boundaries <- spTransform(state_boundaries, CRS("+init=epsg:4326"))
+proj4string(no2) <- CRS("+init=epsg:4326")
+proj4string(o3) <- CRS("+init=epsg:4326")
+proj4string(pm25) <- CRS("+init=epsg:4326")
+# Map boundaries
+leaflet()%>%
+  addTiles()%>%
+  addPolygons(data = state_boundaries, color = "#aaaaaa", weight = 1.0, smoothFactor = 0.5, opacity = 1.0, fillOpacity = 0.7)%>%
+  addCircleMarkers(data = no2, color = "BLUE", weight = 1, radius = 2)%>%
+  addCircleMarkers(data = o3, color = "GREEN", weight = 1, radius = 2)%>%
+  addCircleMarkers(data = pm25, color = "RED", weight = 1, radius = 2)
+```
+
+#Plotting the Fit?????
+```{r}
+pm25.fit <- fit.variogram(pm25_var.vgm, model = vgm("Sph"))
+
+plot(pm25_var.vgm, pm25)
+```
+## Convex Hull pm25
+```{r}
+convexhull_pm25 <- pm25@coords %>% 
+  chull() 
+convex_hull_pm25_points <- pm25@coords[ convexhull_pm25, ]%>%
+  as.data.frame()
+
+plot(convex_hull_pm25_points)
+
+crds <- coordinates(convex_hull_pm25_points)
+
+poly <- sp::Polygon(crds)
+
+ID <- "Minimum Boundary"
+Pls <- Polygons(list(poly), ID=ID)
+```
+
+# Grid Making Convex Hull
+```{r}
+SPls <- SpatialPolygons(list(Pls))
+plot(SPls)
+class(SPls)
+```
+
+```{r}
+convexhull_o3 <- o3@coords %>% 
+  chull() 
+convex_hull_o3_points <- o3@coords[ convexhull_o3, ]%>%
+  as.data.frame()
+
+plot(convex_hull_o3_points)
+
+crds <- coordinates(convex_hull_o3_points)
+
+poly <- sp::Polygon(crds)
+
+ID <- "Minimum Boundary"
+Pls <- Polygons(list(poly), ID=ID)
+
+SPls <- SpatialPolygons(list(Pls))
+plot(SPls)
+class(SPls)
+```
+
+```{r}
+convexhull_no2 <- no2@coords %>% 
+  chull() 
+convex_hull_no2_points <- no2@coords[ convexhull_no2, ]%>%
+  as.data.frame()
+
+plot(convex_hull_no2_points)
+
+crds <- coordinates(convex_hull_no2_points)
+
+poly <- sp::Polygon(crds)
+
+ID <- "Minimum Boundary"
+Pls <- Polygons(list(poly), ID=ID)
+
+SPls <- SpatialPolygons(list(Pls))
+plot(SPls)
+class(SPls)
+```
+
+```{r}
+grid <- makegrid(SPls, cellsize = 100)
+```
+
+# Grid Making State Boundary
+
+```{r}
+# Plot sensors
+plot(no2, col = "BLUE")
+plot(o3, add = TRUE, col = "GREEN")
+plot(pm25, add = TRUE, col = "RED")
+
+# Generate grid based on bounding box of state_boundaries
+prediction_grid <- makegrid(state_boundaries, cellsize = 0.5)
+class(prediction_grid)
+str(prediction_grid)
+coordinates(prediction_grid) <- ~ x1+x2
+class(prediction_grid)
+# Add grid to plot
+plot(prediction_grid, add = TRUE)
+# Convert grid to SPDF
+spatial_grid <- SpatialPoints(prediction_grid, proj4string = CRS(proj4string(state_boundaries)))
+spatial_grid_clipped <- spatial_grid[state_boundaries, ]
+
+# Plot spatial grid with sensors
+plot(spatial_grid_clipped)
+plot(no2, add = TRUE, col = "BLUE")
+plot(o3, add = TRUE, col = "GREEN")
+plot(pm25, add = TRUE, col = "RED")
+```
+
+# IDW Interpolation
+
+```{r}
+library(gstat)
+pm25_SP <- spTransform(pm25, CRS("+proj=longlat +datum=WGS84 +no_defs"))
+
+leaflet(pm25_SP)%>% 
+  addTiles()%>%
+  addCircleMarkers()
+class(pm25_SP)
+
+idw_pm25 <- idw(pm25_SP@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
+            pm25_SP, # Input Data
+            spatial_grid_clipped, # Prediction Locations
+            idp = 2 # Exponent (k)
+            )
+
+class(idw_pm25)
+str(idw_pm25)
+spplot(idw_pm25, "var1.pred")
+
+## LOOCV
+
+pm25@data$AM <- pm25@data$'Arithmetic Mean'
+LOOCV <- krige.cv(AM ~ 1,
+                  no2,
+                  nfold = nrow(pm25),
+                  set = list(idp = 2)
+                  )
+```
+
+
+
+
+
+
+# Kriging
+
+```{r}
+bh <- st_read(system.file("",
+                          package="spdep")[1], quiet=TRUE)
+
+KZ_1<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennessee" | `State Name`=="Louisiana" | `State Name`=="Oklahoma" | `State Name`== "Texas" )
+class(KZ)
+
+st_crs(KZ_1) <- "+proj=longlat +ellps=WGS84"
+
+dpad <- data.frame(scale(as.data.frame(KZ_1)[,1:5]))
+
+summary(dpad)
+
+### neighboorhod list
+bh.nb <- poly2nb(bh)
+
+### calculating costs
+lcosts <- nbcosts(bh.nb, dpad)
+
+### making listw
+nb.w <- nb2listw(bh.nb, lcosts, style="B")
+
+### find a minimum spanning tree
+mst.bh <- mstree(nb.w,5)
+
+### the mstree plot
+par(mar=c(0,0,0,0))
+plot(st_geometry(bh), border=gray(.5))
+plot(mst.bh, coordinates(as(bh, "Spatial")), col=2, 
+     cex.lab=.6, cex.circles=0.035, fg="blue", add=TRUE)
+
+### three groups with no restriction
+res1 <- skater(mst.bh[,1:2], dpad, 2)
+
+### groups size
+table(res1$groups)
+
+### the skater plot
+opar <- par(mar=c(0,0,0,0))
+plot(res1, coordinates(as(bh, "Spatial")), cex.circles=0.035, cex.lab=.7)
+
+### the skater plot, using other colors
+plot(res1, coordinates(as(bh, "Spatial")), cex.circles=0.035, cex.lab=.7,
+     groups.colors=heat.colors(length(res1$ed)))
+
+### the Spatial Polygons plot
+plot(st_geometry(bh), col=heat.colors(length(res1$edg))[res1$groups])
+
+```
+```{r}
+
+```
+
