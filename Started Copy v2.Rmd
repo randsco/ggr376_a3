@@ -44,6 +44,7 @@ pollution_filtered_states_by_parametres<-pollution_filtered_states%>%filter(`Par
 no2 <- pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)" & `Pollutant Standard`=="NO2 1-hour")
 o3 <- pollution_filtered_states%>%filter(`Parameter Name`=="Ozone" & `Pollutant Standard`=="Ozone 1-hour 1979")
 pm25 <- pollution_filtered_states%>%filter(`Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG" & `Pollutant Standard`=="PM25 24-hour 2012")
+
 no2_copy <- no2
 o3_copy <- o3
 pm25_copy <- pm25

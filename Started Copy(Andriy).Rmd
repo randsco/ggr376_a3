@@ -22,6 +22,8 @@ library(spdep)
 library(latticeExtra)
 library(RColorBrewer)
 library(dplyr)
+library(rgeos)
+library(sf)
 ```
 
 # Load Data
@@ -29,27 +31,29 @@ library(dplyr)
 ```{r}
 # Read in pollution data from csv
 pollution<-read_csv("annual_conc_by_monitor_2018.csv")
+# Load in state boundaries polygon
+state_boundaries <- readOGR("state_boundaries.geojson")
 ```
 
 # Data Filtering
 
 ```{r}
 # Filter pollution data by state
-pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennessee" | `State Name`=="Louisiana" | `State Name`=="Oklahoma" | `State Name`== "Texas" )
+pollution_filtered_states<-pollution%>%filter(`State Name`=="Arkansas"| `State Name`=="Tennessee" | `State Name`=="Louisiana" | `State Name`=="Oklahoma" | `State Name`== "Texas")
 
 # Filter pollution data by sensor
 pollution_filtered_states_by_parametres<-pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)"| `Parameter Name`=="Ozone" | `Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG")
 
 # Split up pollution data by sensor
-no2 <- pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)" & `Pollutant Standard`=="NO2 1-hour")
-o3 <- pollution_filtered_states%>%filter(`Parameter Name`=="Ozone" & `Pollutant Standard`=="Ozone 1-hour 1979")
-pm25 <- pollution_filtered_states%>%filter(`Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG" & `Pollutant Standard`=="PM25 24-hour 2012")
+no2 <- pollution_filtered_states%>%filter(`Parameter Name`=="Nitrogen dioxide (NO2)" & `Pollutant Standard`=="NO2 1-hour" & Datum=="WGS84")
+o3 <- pollution_filtered_states%>%filter(`Parameter Name`=="Ozone" & `Pollutant Standard`=="Ozone 1-hour 1979" & Datum=="WGS84")
+pm25 <- pollution_filtered_states%>%filter(`Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG" & `Pollutant Standard`=="PM25 24-hour 2012" & Datum=="WGS84")
 no2_copy <- no2
 o3_copy <- o3
 pm25_copy <- pm25
 ```
 
-# Data Pre Plotting
+#    Data Pre Plotting
 
 ```{r}
 # All sensor data
@@ -77,7 +81,7 @@ ggplot(data = pm25_copy)+
   coord_fixed()
 ```
 
-# Convert Data to SPDF
+# Convert Data to SPDF and Project
 
 ```{r}
 # NO2 data preview
@@ -100,13 +104,7 @@ glimpse(pm25)
 class(pm25)
 # PM 2.5 convert to SPDF
 coordinates(pm25) <- ~ Longitude + Latitude
-```
 
-# Data Mapping
-
-```{r}
-# Load in state boundaries polygon
-state_boundaries <- readOGR("state_boundaries.geojson")
 # Reproject data to WGS84 EPSG:4326
 state_boundaries <- spTransform(state_boundaries, CRS("+init=epsg:4326"))
 proj4string(no2) <- CRS("+init=epsg:4326")
@@ -115,6 +113,11 @@ proj4string(o3) <- CRS("+init=epsg:4326")
 o3 <- spTransform(o3, CRS("+init=epsg:4326"))
 proj4string(pm25) <- CRS("+init=epsg:4326")
 pm25 <- spTransform(pm25, CRS("+init=epsg:4326"))
+```
+
+#    Data Mapping
+
+```{r}
 # Map boundaries
 leaflet()%>%
   addTiles()%>%
@@ -125,28 +128,28 @@ leaflet()%>%
 ```
 
 
-## Convex Hull pm25
+#    Convex Hull pm25
 ```{r}
-convexhull_pm25 <- pm25@coords %>% 
-  chull() 
-convex_hull_pm25_points <- pm25@coords[ convexhull_pm25, ]%>%
-  as.data.frame()
-
-plot(convex_hull_pm25_points)
-
-crds <- coordinates(convex_hull_pm25_points)
-
-poly <- sp::Polygon(crds)
-
-ID <- "Minimum Boundary"
-Pls <- Polygons(list(poly), ID=ID)
+# convexhull_pm25 <- pm25@coords %>% 
+#   chull() 
+# convex_hull_pm25_points <- pm25@coords[ convexhull_pm25, ]%>%
+#   as.data.frame()
+# 
+# plot(convex_hull_pm25_points)
+# 
+# crds <- coordinates(convex_hull_pm25_points)
+# 
+# poly <- sp::Polygon(crds)
+# 
+# ID <- "Minimum Boundary"
+# Pls <- Polygons(list(poly), ID=ID)
 ```
 
-# Grid Making Convex Hull
+#    Grid Making Convex Hull
 ```{r}
-SPls <- SpatialPolygons(list(Pls))
-plot(SPls)
-class(SPls)
+# SPls <- SpatialPolygons(list(Pls))
+# plot(SPls)
+# class(SPls)
 ```
 
 ```{r}
@@ -197,28 +200,42 @@ grid <- makegrid(SPls, cellsize = 100)
 
 ```{r}
 # Plot sensors
-plot(no2, col = "BLUE")
-plot(o3, add = TRUE, col = "GREEN")
-plot(pm25, add = TRUE, col = "RED")
+# plot(no2, col = "BLUE")
+# plot(o3, add = TRUE, col = "GREEN")
+# plot(pm25, add = TRUE, col = "RED")
 
 # Generate grid based on bounding box of state_boundaries
+# state_boundaries <- unionSpatialPolygons(state_boundaries, NAME)
+# state_boundaries <- aggregate(state_boundaries, dissolve = TRUE, FUN = sum)
+state_boundaries <- gUnaryUnion(state_boundaries, state_boundaries@data$NAME)
+
+
 prediction_grid <- makegrid(state_boundaries, cellsize = 0.5)
 class(prediction_grid)
 str(prediction_grid)
 coordinates(prediction_grid) <- ~ x1+x2
+proj4string(prediction_grid) <- CRS("+init=epsg:4326")
 class(prediction_grid)
 # Add grid to plot
-plot(prediction_grid, add = TRUE)
+plot(prediction_grid)
+plot(state_boundaries)
 # Convert grid to SPDF
-spatial_grid <- SpatialPoints(prediction_grid, proj4string = CRS(proj4string(state_boundaries)))
+#spatial_grid <- SpatialPoints(prediction_grid, proj4string = CRS(proj4string(state_boundaries)))
 # Clip to boundary
-spatial_grid_clipped <- spatial_grid[state_boundaries, ]
+#spatial_grid_clipped <- prediction_grid[state_boundaries, ]
+
+# Check which grid cells are in the polygon
+overlap <- sp::over(prediction_grid , state_boundaries)
+overlap # NA were not in poly
+# Select points not NA using !is.na()
+spatial_grid_clipped <- prediction_grid[!is.na(overlap),]
+plot(spatial_grid_clipped)
 
 # Plot spatial grid with sensors
-plot(spatial_grid_clipped)
-plot(no2, add = TRUE, col = "BLUE")
-plot(o3, add = TRUE, col = "GREEN")
-plot(pm25, add = TRUE, col = "RED")
+# plot(spatial_grid_clipped)
+# plot(no2, add = TRUE, col = "BLUE")
+# plot(o3, add = TRUE, col = "GREEN")
+# plot(pm25, add = TRUE, col = "RED")
 ```
 
 # IDW Interpolation
@@ -236,9 +253,10 @@ spplot(idw_no2, "var1.pred")
 ```
 
 ```{r}
-LOOCV <- krige.cv(no2@data$`Arithmetic Mean`~1, 
-                  no2, 
-                  nfold = nrow(no2), # Set the number of folds to the number of rows
+no2@data$AM <- no2@data$'Arithmetic Mean'
+LOOCV <- krige.cv(AM ~ 1,
+                  no2,
+                  nfold = nrow(no2),
                   set = list(idp = 2)
                   )
 ```
@@ -253,14 +271,14 @@ class(no2)
 bbox(no2)
 hist(no2@data$'Arithmetic Mean')
 # Log transform NO2 data to meet normally distributed assumption for kriging
-no2@data$'AMLog' <- log(no2@data$'Arithmetic Mean')
+no2@data$AMLog <- log(no2@data$'Arithmetic Mean')
 # Histogram of new variable
-hist(no2@data$'AMLog')
+hist(no2@data$AMLog)
 # Show variogram models
 show.vgms()
 # NO2 variogram
 no2.vgm <- variogram(AMLog~1, no2)
-plot(no2_var.vgm)
+plot(no2.vgm)
 
 # O3 pre transform
 class(o3)
@@ -269,21 +287,21 @@ hist(o3@data$'Arithmetic Mean')
 # Log transform O3 data to meet normally distributed assumption for kriging
 o3@data$'AMLog' <- log(o3@data$'Arithmetic Mean')
 # Histogram of new variable
-hist(o3@data$'AMLog')
+hist(o3@data$AMLog)
 # Show variogram models
 show.vgms()
 # O3 variogram
-o3_var.vgm <- variogram(AMLog~1, o3)
-plot(o3_var.vgm)
+o3.vgm <- variogram(AMLog~1, o3)
+plot(o3.vgm)
 
 # PM 2.5 pre transform
 class(pm25)
 bbox(pm25)
 hist(pm25@data$'Arithmetic Mean')
 # Log transform PM 2.5 data to meet normally distributed assumption for kriging
-pm25@data$'AMLog' <- log(pm25@data$'Arithmetic Mean')
+pm25@data$AMLog <- log(pm25@data$'Arithmetic Mean')
 # Histogram of new variable
-hist(pm25@data$'AMLog')
+hist(pm25@data$AMLog)
 # Show variogram models
 show.vgms()
 # PM 2.5 variogram
@@ -302,9 +320,16 @@ plot(pm25.vgm, pm25.fit)
 # Predict Kriging Values
 
 ```{r}
-pm25_fixed <- pm25[-zerodist(pm25)[,1],]
-zerodist(pm25_fixed)
-pm25_ordinary_krige <- krige(pm25_fixed@data$AMLog~1, pm25_fixed, spatial_grid_clipped, model=pm25.fit)
+# pm25_fixed <- pm25[-zerodist(pm25)[,1],]
+# zerodist(pm25_fixed)
+
+# pm25_fixed <- pm25[which(!duplicated(pm25@data$`Site Num`)), ]
+
+pm25_fixed = pm25[which(!duplicated(pm25@coords)), ]
+
+#pm25_ordinary_krige <- krige.cv(AMLog~1,pm25)
+pm25_ordinary_krige <- krige.cv(AMLog~1, pm25_fixed, spatial_grid_clipped, model=pm25.fit)
+#pm25_ordinary_krige <- krige.cv(AMLog~1, pm25, spatial_grid_clipped, model=pm25.fit)
 ```
 
 ```{r}
