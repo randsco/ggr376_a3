@@ -145,7 +145,7 @@ leaflet()%>%
 
 #    Grid Making Convex Hull
 ```{r}
-# SPls <- SpatialPolygons(list(Pls))
+# SPls <- SpatialPolygons(list(SPls))
 # plot(SPls)
 # class(SPls)
 ```
@@ -236,15 +236,6 @@ spatial_grid_clipped <- prediction_grid[state_boundaries, ]
 # plot(pm25, add = TRUE, col = "RED")
 ```
 
-
-```{r}
-no2@data$AM <- no2@data$'Arithmetic Mean'
-LOOCV <- krige.cv(AM ~ 1,
-                  no2,
-                  nfold = nrow(no2),
-                  set = list(idp = 2)
-                  )
-```
 #IDW OF PM2.5
 ```{r}
 idw_pm25 <- idw(pm25@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
@@ -316,6 +307,8 @@ RMSE_resid <- function(x){
 } 
 RMSE_resid(LOOCV@data$residual)
 ```
+
+
 #IDW Interpolation Ozone
 ```{r}
 idw_o3 <- idw(o3@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
@@ -346,7 +339,7 @@ LOOCV_o3_IDW@data$residual ^ 2 %>%
   sqrt()
 
 ```
-#IDW LOOCV 3(just right)
+#IDW Ozone LOOCV 3(just right)
 ```{r}
 o3@data$AM <- o3@data$'Arithmetic Mean'
 LOOCV_o3_IDW <- krige.cv(AM ~ 1,
@@ -364,7 +357,7 @@ LOOCV_o3_IDW@data$residual ^ 2 %>%
   sqrt()
 
 ```
-##LOOCV Ozone 4
+##IDW LOOCV Ozone 4
 ```{r}
 o3@data$AM <- o3@data$'Arithmetic Mean'
 LOOCV_o3_IDW <- krige.cv(AM ~ 1,
@@ -381,6 +374,8 @@ LOOCV_o3_IDW@data$residual ^ 2 %>%
   mean() %>%
   sqrt()
 ```
+
+
 ##IDW OF NITROGEN OXIDE
 ```{r}
 idw_no2 <- idw(no2@data$`Arithmetic Mean` ~ 1, # Formula for IDW and Ordinary Kriging are Value ~ 1
@@ -394,7 +389,7 @@ str(idw_no2)
 spplot(idw_no2, "var1.pred")
 ```
 
-#LOOCV Interpolation 2
+#LOOCV IDW Nitrogen Oxide 2
 ```{r}
 no2@data$AM <- no2@data$'Arithmetic Mean'
 LOOCV_no2_IDW <- krige.cv(AM ~ 1,
@@ -446,7 +441,7 @@ LOOCV_no2_IDW@data$residual ^ 2 %>%
   mean() %>%
   sqrt()
 ```
-## LOOCV OZONE 1 (LOWER)
+## LOOCV Nitrogen Oxide 1 (LOWER)
 ```{r}
 no2@data$AM <- no2@data$'Arithmetic Mean'
 LOOCV_no2_IDW <- krige.cv(AM ~ 1,
