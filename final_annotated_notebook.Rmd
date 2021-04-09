@@ -46,6 +46,11 @@ o3 <- pollution_filtered_states%>%filter(`Parameter Name`=="Ozone" & `Pollutant 
 pm25 <- pollution_filtered_states%>%filter(`Parameter Code`=="88101" & `Sample Duration`=="24-HR BLK AVG" & `Pollutant Standard`=="PM25 24-hour 2012" & Datum=="WGS84")
 ```
 
+```{r}
+no2(summary)
+```
+
+
 # Convert Data to SPDF and Project
 
 ```{r}
